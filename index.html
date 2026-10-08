@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- Kunci viewport: Skala tetap 1.0, minimum 1.0, maksimum 1.0, user-scalable=no -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
   <title>Velocity Kasir</title>
 
   <!-- Konfigurasi PWA & Layar Penuh -->
@@ -19,14 +20,22 @@
       padding: 0;
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
+      /* Mencegah gesture zoom bawaan peramban */
+      touch-action: pan-x pan-y;
     }
     
     html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
+      position: fixed; /* Mencegah scroll overscroll/bounce yang memicu zoom */
       background-color: #0f172a;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     #app-frame {
@@ -35,6 +44,7 @@
       border: none;
       display: block;
       background-color: #0f172a;
+      touch-action: pan-x pan-y;
     }
 
     /* Loading Screen Animasi Halus */
@@ -99,10 +109,45 @@
       }
     }
 
-    // Fallback: hapus loader otomatis setelah 6 detik jika koneksi lambat
+    // Fallback loader jika jaringan lambat
     setTimeout(hideLoader, 6000);
 
-    // Registrasi Service Worker untuk PWA Chrome Android
+    // 1. Blokir Pinch-to-Zoom (Sentuhan lebih dari 1 jari)
+    document.addEventListener('touchstart', function (e) {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // 2. Blokir Gestur Skala (iOS Safari & Chrome Touch)
+    document.addEventListener('gesturestart', function (e) {
+      e.preventDefault();
+    });
+    document.addEventListener('gesturechange', function (e) {
+      e.preventDefault();
+    });
+    document.addEventListener('gestureend', function (e) {
+      e.preventDefault();
+    });
+
+    // 3. Blokir Double-Tap Zoom (Ketukan dua kali beruntun)
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function (e) {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, { passive: false });
+
+    // 4. Blokir Ctrl + Scroll Wheel (Zoom via mouse/trackpad)
+    document.addEventListener('wheel', function (e) {
+      if (e.ctrlKey) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // Registrasi Service Worker PWA
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
